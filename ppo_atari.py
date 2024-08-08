@@ -8,17 +8,17 @@ import uuid
 import numpy as np
 import pandas as pd
 import torch
+from torch import nn
+from torch.distributions import Categorical, Distribution
+from torch.optim.lr_scheduler import LambdaLR
+
 from atari_network import DQN, layer_init, scale_obs
 from atari_wrapper import make_atari_env
-from common import TrainLogger
 from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.policy import PPOPolicy
 from tianshou.trainer import OnpolicyTrainer
 from tianshou.utils.net.common import ActorCritic
 from tianshou.utils.net.discrete import Actor, Critic
-from torch import nn
-from torch.distributions import Categorical, Distribution
-from torch.optim.lr_scheduler import LambdaLR
 
 
 def actor_init(layer):
@@ -34,6 +34,9 @@ def critic_init(layer):
 
 
 def train_atari(args: argparse.Namespace):
+    from tianshou.utils import logging
+    logging.configure()
+
     # make env
     env, train_envs, test_envs = make_atari_env(
         task=f"{args.env}NoFrameskip-v4", seed=args.seed, training_num=8, test_num=8
@@ -68,8 +71,8 @@ def train_atari(args: argparse.Namespace):
 
     # decay learning rate to 0 linearly
     step_per_collect = 128 * 8
-    step_per_epoch = 128 * 8
-    epoch = int(10000000 // (128 * 8))
+    step_per_epoch = round(100000 // step_per_collect) * step_per_collect
+    epoch = int(10000000 // step_per_epoch)
     lr_scheduler = LambdaLR(optim, lr_lambda=lambda e: 1 - e / epoch)
 
     def dist(logits: torch.Tensor) -> Distribution:
@@ -108,11 +111,16 @@ def train_atari(args: argparse.Namespace):
     )
 
     train_collector = Collector(
-        policy, train_envs, train_buffer, exploration_noise=False
+        policy, train_envs, train_buffer, exploration_noise=True
     )
+    test_collector = Collector(policy, test_envs, exploration_noise=True)
 
-    logger = TrainLogger(
-        train_interval=128 * 8,
+    from tianshou.highlevel.logger import LoggerFactoryDefault
+    logger_factory = LoggerFactoryDefault()
+    logger = logger_factory.create_logger(
+        log_dir="log",
+        experiment_name=f"rajfly-{args.env}",
+        run_id=None,
     )
 
     start_time = time.time()
@@ -123,11 +131,11 @@ def train_atari(args: argparse.Namespace):
         max_epoch=epoch,
         batch_size=256,
         train_collector=train_collector,
-        test_collector=None,
+        test_collector=test_collector,
         buffer=None,
         step_per_epoch=step_per_epoch,
         repeat_per_collect=4,
-        episode_per_test=0,
+        episode_per_test=8,
         update_per_step=1.0,
         step_per_collect=step_per_collect,
         episode_per_collect=None,
@@ -182,11 +190,19 @@ if __name__ == "__main__":
         help="Specify number of trials",
         default=5,
     )
+    parser.add_argument(
+        "-s",
+        "--seed",
+        type=int,
+        help="Random seed",
+        default=23,
+    )
     args = parser.parse_args()
+    seed = args.seed
     for _ in range(args.trials):
         args.id = uuid.uuid4().hex
         args.path = os.path.join("trials", "ppo", args.env, args.id)
-        args.seed = int(time.time())
+        args.seed = seed
 
         # create dir
         pathlib.Path(args.path).mkdir(parents=True, exist_ok=True)
@@ -199,3 +215,5 @@ if __name__ == "__main__":
         # save trial info
         with open(os.path.join(args.path, "info.json"), "w") as f:
             json.dump(vars(args), f, indent=4)
+
+        seed += 2

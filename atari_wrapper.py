@@ -345,10 +345,11 @@ class AtariEnvFactory(EnvFactoryRegistered):
 
     def create_env(self, mode: EnvMode) -> Env:
         env = super().create_env(mode)
+        is_train = mode == EnvMode.TRAIN
         return wrap_deepmind(
             env,
-            episode_life=True,
-            clip_rewards=True,
+            episode_life=is_train,
+            clip_rewards=is_train,
             frame_stack=4,
             scale=False,
             warp_frame=True,
