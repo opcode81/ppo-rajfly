@@ -73,7 +73,8 @@ def train_atari(args: argparse.Namespace):
     step_per_collect = 128 * 8
     step_per_epoch = round(100000 // step_per_collect) * step_per_collect
     epoch = int(10000000 // step_per_epoch)
-    lr_scheduler = LambdaLR(optim, lr_lambda=lambda e: 1 - e / epoch)
+    max_update_num = np.ceil(step_per_epoch / step_per_collect) * epoch
+    lr_scheduler = LambdaLR(optim, lr_lambda=lambda e: 1 - e / max_update_num)
 
     def dist(logits: torch.Tensor) -> Distribution:
         return Categorical(logits=logits)
