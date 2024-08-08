@@ -337,8 +337,9 @@ class AtariEnvFactory(EnvFactoryRegistered):
         assert "NoFrameskip-v4" in task
         super().__init__(
             task=task,
-            seed=seed,
-            venv_type=VectorEnvType.SUBPROC_SHARED_MEM,
+            train_seed=seed,
+            test_seed=seed+1,
+            venv_type=VectorEnvType.SUBPROC_SHARED_MEM_AUTO,
             envpool_factory=None,
         )
 

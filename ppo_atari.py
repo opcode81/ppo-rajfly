@@ -142,7 +142,6 @@ def train_atari(args: argparse.Namespace):
         verbose=True,
         show_progress=True,
         test_in_train=False,
-        save_fn=None,
     ).run()
 
     train_end_time = time.time()

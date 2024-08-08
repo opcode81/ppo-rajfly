@@ -56,3 +56,16 @@ class TrainLogger(BaseLogger):
 
     def restore_data(self) -> tuple[int, int, int]:
         return 0, 0, 0
+    
+    def finalize(self) -> None:
+        pass
+    
+    def restore_logged_data(
+        log_path: str,
+    ):
+        pass
+        
+    
+    def prepare_dict_for_logging(self, log_data: dict) -> dict[str, VALID_LOG_VALS_TYPE]:
+        return log_data
+    
